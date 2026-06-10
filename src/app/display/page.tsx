@@ -4,10 +4,14 @@ import { isSpotifyConfigured } from "@/lib/spotify";
 
 export const dynamic = "force-dynamic";
 
-export default function Home() {
+export default function DisplayPage() {
   if (!isSpotifyConfigured()) {
     return <SetupScreen />;
   }
 
-  return <NowPlayingDisplay />;
+  return (
+    <div className="display-kiosk">
+      <NowPlayingDisplay />
+    </div>
+  );
 }
