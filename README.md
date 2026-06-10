@@ -33,5 +33,3 @@ Open [http://127.0.0.1:3000/display](http://127.0.0.1:3000/display) — start pl
 ## Deploy
 
 Deploy to [Vercel](https://vercel.com) and add the env vars above in **Settings → Environment Variables**.
-
-**Privacy:** If you remove all Spotify env vars from Vercel, the site shows an offline screen. Only add your refresh token to deployments you want to show *your* listening activity.
