@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exchangeCodeForTokens } from "@/lib/spotify";
+import { exchangeCodeForTokens, getRedirectUri } from "@/lib/spotify";
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const redirectUri = `${request.nextUrl.origin}/api/auth/callback`;
+  const redirectUri = getRedirectUri(request.nextUrl.origin);
 
   try {
     const tokens = await exchangeCodeForTokens(code, redirectUri);

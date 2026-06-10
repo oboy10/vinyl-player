@@ -144,6 +144,14 @@ export async function fetchNowPlaying(): Promise<NowPlaying | null> {
   };
 }
 
+export function getRedirectUri(origin: string) {
+  const configured = process.env.SPOTIFY_REDIRECT_URI?.trim();
+  if (configured) {
+    return configured;
+  }
+  return `${origin}/api/auth/callback`;
+}
+
 export function getSpotifyAuthUrl(origin: string) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   if (!clientId) {
@@ -153,7 +161,7 @@ export function getSpotifyAuthUrl(origin: string) {
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: "code",
-    redirect_uri: `${origin}/api/auth/callback`,
+    redirect_uri: getRedirectUri(origin),
     scope: "user-read-currently-playing user-read-playback-state",
     show_dialog: "true",
   });
