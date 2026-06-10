@@ -1,23 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exchangeCodeForTokens, getRedirectUri } from "@/lib/spotify";
+import { getRedirectUri } from "@/lib/app-url";
+import { exchangeCodeForTokens } from "@/lib/spotify";
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const error = request.nextUrl.searchParams.get("error");
 
+  const redirectUri = getRedirectUri(request);
+
   if (error || !code) {
     return new NextResponse(
       `<!DOCTYPE html>
-      <html><body style="font-family:system-ui;background:#0a0a0a;color:#fff;padding:2rem">
+      <html><body style="font-family:system-ui;background:#0a0a0a;color:#fff;padding:2rem;max-width:40rem;margin:0 auto;line-height:1.6">
         <h1>Spotify auth failed</h1>
         <p>${error ?? "No authorization code received."}</p>
-        <a href="/api/auth/spotify" style="color:#1db954">Try again</a>
+        ${
+          error?.includes("redirect") || error === "redirect_uri_mismatch"
+            ? `<p>Add this <strong>exact</strong> redirect URI in Spotify Dashboard → Settings → Redirect URIs → Save:</p>
+               <code style="display:block;background:#1a1a1a;padding:1rem;border-radius:0.5rem;word-break:break-all">${redirectUri}</code>`
+            : ""
+        }
+        <p><a href="/api/auth/spotify" style="color:#1db954">Try again</a></p>
       </body></html>`,
       { headers: { "Content-Type": "text/html" } },
     );
   }
-
-  const redirectUri = getRedirectUri(request.nextUrl.origin);
 
   try {
     const tokens = await exchangeCodeForTokens(code, redirectUri);

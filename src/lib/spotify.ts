@@ -144,24 +144,21 @@ export async function fetchNowPlaying(): Promise<NowPlaying | null> {
   };
 }
 
-export function getRedirectUri(origin: string) {
-  const configured = process.env.SPOTIFY_REDIRECT_URI?.trim();
-  if (configured) {
-    return configured;
-  }
-  return `${origin}/api/auth/callback`;
-}
+import type { NextRequest } from "next/server";
+import { getRedirectUri } from "@/lib/app-url";
 
-export function getSpotifyAuthUrl(origin: string) {
+export function getSpotifyAuthUrl(request: NextRequest) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   if (!clientId) {
     throw new Error("SPOTIFY_CLIENT_ID is not set");
   }
 
+  const redirectUri = getRedirectUri(request);
+
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: "code",
-    redirect_uri: getRedirectUri(origin),
+    redirect_uri: redirectUri,
     scope: "user-read-currently-playing user-read-playback-state",
     show_dialog: "true",
   });

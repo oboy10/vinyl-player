@@ -1,21 +1,15 @@
 import { headers } from "next/headers";
-import { getRedirectUri } from "@/lib/spotify";
-
-async function getAppOrigin() {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  return `${proto}://${host}`;
-}
+import {
+  getRedirectUri,
+  getSpotifyRedirectUrisToRegister,
+  resolveAppOrigin,
+} from "@/lib/app-url";
 
 export async function SetupScreen() {
-  const origin = await getAppOrigin();
-  const redirectUri = getRedirectUri(origin);
-
-  const localVariants = [
-    "http://localhost:3000/api/auth/callback",
-    "http://127.0.0.1:3000/api/auth/callback",
-  ].filter((uri) => uri !== redirectUri);
+  const h = await headers();
+  const origin = resolveAppOrigin(h);
+  const redirectUri = getRedirectUri(h);
+  const allUris = getSpotifyRedirectUrisToRegister(h);
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-[#050508] px-6 text-center">
@@ -34,19 +28,18 @@ export async function SetupScreen() {
         </div>
 
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-left text-sm">
-          <p className="font-medium text-amber-200">Spotify redirect URI (copy exactly)</p>
-          <code className="mt-2 block break-all text-xs text-amber-100/90">{redirectUri}</code>
-          {localVariants.length > 0 && (
-            <p className="mt-2 text-xs text-amber-200/70">
-              If auth still fails locally, also add:{" "}
-              {localVariants.map((uri, i) => (
-                <span key={uri}>
-                  {i > 0 && " and "}
-                  <code className="text-amber-100/80">{uri}</code>
-                </span>
-              ))}
-            </p>
-          )}
+          <p className="font-medium text-amber-200">Add these redirect URIs in Spotify</p>
+          <p className="mt-1 text-xs text-amber-200/70">
+            Dashboard → your app → Settings → Redirect URIs → Add each → Save
+          </p>
+          <ul className="mt-3 space-y-2">
+            {allUris.map((uri) => (
+              <li key={uri}>
+                <code className="block break-all text-xs text-amber-100/90">{uri}</code>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-amber-200/60">Active origin: {origin}</p>
         </div>
 
         <ol className="space-y-3 text-left text-sm text-white/60">
@@ -59,15 +52,14 @@ export async function SetupScreen() {
               rel="noreferrer"
             >
               Spotify Developer Dashboard
-            </a>{" "}
-            → your app → <strong className="text-white/80">Settings</strong>
+            </a>
           </li>
           <li className="rounded-lg bg-white/5 px-4 py-3 ring-1 ring-white/8">
-            <span className="text-white/80">2.</span> Under <strong className="text-white/80">Redirect URIs</strong>, paste the URI above →{" "}
-            <strong className="text-white/80">Add</strong> → <strong className="text-white/80">Save</strong> at the bottom
+            <span className="text-white/80">2.</span> Add every URI above, then click{" "}
+            <strong className="text-white/80">Save</strong> at the bottom of Settings
           </li>
           <li className="rounded-lg bg-white/5 px-4 py-3 ring-1 ring-white/8">
-            <span className="text-white/80">3.</span> Set env vars:{" "}
+            <span className="text-white/80">3.</span> Set{" "}
             <code className="text-xs text-white/70">SPOTIFY_CLIENT_ID</code>,{" "}
             <code className="text-xs text-white/70">SPOTIFY_CLIENT_SECRET</code>, then{" "}
             <code className="text-xs text-white/70">SPOTIFY_REFRESH_TOKEN</code> after connecting
@@ -80,6 +72,10 @@ export async function SetupScreen() {
         >
           Connect Spotify
         </a>
+
+        <p className="text-xs text-white/30">
+          Using redirect: <code className="text-white/50">{redirectUri}</code>
+        </p>
       </div>
     </div>
   );

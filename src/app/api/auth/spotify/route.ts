@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSpotifyAuthUrl } from "@/lib/spotify";
 
 export async function GET(request: NextRequest) {
-  const origin = request.nextUrl.origin;
-
   try {
-    const url = getSpotifyAuthUrl(origin);
+    const url = getSpotifyAuthUrl(request);
     return NextResponse.redirect(url);
   } catch {
     return NextResponse.json(
