@@ -44,6 +44,20 @@ function getCredentials() {
   return { clientId, clientSecret, refreshToken };
 }
 
+export function hasSpotifyOAuthCredentials() {
+  return Boolean(
+    process.env.SPOTIFY_CLIENT_ID?.trim() && process.env.SPOTIFY_CLIENT_SECRET?.trim(),
+  );
+}
+
+export function getMissingSpotifyEnvVars() {
+  const missing: string[] = [];
+  if (!process.env.SPOTIFY_CLIENT_ID?.trim()) missing.push("SPOTIFY_CLIENT_ID");
+  if (!process.env.SPOTIFY_CLIENT_SECRET?.trim()) missing.push("SPOTIFY_CLIENT_SECRET");
+  if (!process.env.SPOTIFY_REFRESH_TOKEN?.trim()) missing.push("SPOTIFY_REFRESH_TOKEN");
+  return missing;
+}
+
 export function isSpotifyConfigured() {
   return getCredentials() !== null;
 }

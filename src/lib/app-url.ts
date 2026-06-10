@@ -2,6 +2,10 @@ import type { NextRequest } from "next/server";
 
 const CALLBACK_PATH = "/api/auth/callback";
 
+/** Spotify no longer allows localhost — use 127.0.0.1 for local dev. */
+const LOCAL_ORIGIN = "http://127.0.0.1:3000";
+const LOCAL_REDIRECT_URI = `${LOCAL_ORIGIN}${CALLBACK_PATH}`;
+
 function stripTrailingSlash(url: string) {
   return url.replace(/\/$/, "");
 }
@@ -15,7 +19,19 @@ function originFromHeaders(headers: Headers): string | null {
     headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? "http";
 
   if (!host) return null;
-  return stripTrailingSlash(`${proto}://${host}`);
+
+  // Spotify rejects localhost — normalize to 127.0.0.1 for local dev
+  const normalizedHost = host.replace(/^localhost/i, "127.0.0.1");
+  return stripTrailingSlash(`${proto}://${normalizedHost}`);
+}
+
+function isLocalOrigin(origin: string) {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+  } catch {
+    return false;
+  }
 }
 
 /** Canonical app origin for OAuth (must match a Spotify Dashboard redirect URI). */
@@ -42,33 +58,59 @@ export function resolveAppOrigin(request?: NextRequest | Headers): string {
   }
 
   if (request instanceof Headers) {
-    return originFromHeaders(request) ?? "http://localhost:3000";
+    const fromHeaders = originFromHeaders(request);
+    if (fromHeaders) return fromHeaders;
+    return LOCAL_ORIGIN;
   }
 
   if (request) {
     const fromHeaders = originFromHeaders(request.headers);
     if (fromHeaders) return fromHeaders;
-    return stripTrailingSlash(request.nextUrl.origin);
+    const origin = stripTrailingSlash(request.nextUrl.origin);
+    if (isLocalOrigin(origin)) {
+      try {
+        const { port } = new URL(origin);
+        return port ? `http://127.0.0.1:${port}` : LOCAL_ORIGIN;
+      } catch {
+        return LOCAL_ORIGIN;
+      }
+    }
+    return origin;
   }
 
-  return "http://localhost:3000";
+  return LOCAL_ORIGIN;
 }
 
 export function getRedirectUri(request?: NextRequest | Headers): string {
   const configured = process.env.SPOTIFY_REDIRECT_URI?.trim();
   if (configured) {
-    return stripTrailingSlash(configured);
+    return stripTrailingSlash(configured).replace(
+      /^http:\/\/localhost/i,
+      "http://127.0.0.1",
+    );
   }
 
-  return `${resolveAppOrigin(request)}${CALLBACK_PATH}`;
+  const origin = resolveAppOrigin(request);
+  if (isLocalOrigin(origin)) {
+    try {
+      const { port } = new URL(origin);
+      return port
+        ? `http://127.0.0.1:${port}${CALLBACK_PATH}`
+        : LOCAL_REDIRECT_URI;
+    } catch {
+      return LOCAL_REDIRECT_URI;
+    }
+  }
+
+  return `${origin}${CALLBACK_PATH}`;
 }
 
 export function getSpotifyRedirectUrisToRegister(request?: NextRequest | Headers): string[] {
   const primary = getRedirectUri(request);
-  const extras = [
-    "http://localhost:3000/api/auth/callback",
-    "http://127.0.0.1:3000/api/auth/callback",
-  ];
 
-  return [primary, ...extras.filter((uri) => uri !== primary)];
+  if (isLocalOrigin(resolveAppOrigin(request))) {
+    return [primary];
+  }
+
+  return [primary];
 }
