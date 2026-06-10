@@ -4,8 +4,6 @@ A fun lil project — I always wanted a vinyl visualizer for whatever I'm listen
 
 Shows your current Spotify track as a spinning record with the album sleeve, color-matched gradients, and live progress. Built for a tiny always-on display, but works in any browser.
 
-The public demo stays **offline** until you configure your own Spotify credentials. One refresh token = one person's listening — don't put yours on a public deploy unless you're okay with that.
-
 ## Setup
 
 1. Clone the repo and install dependencies
