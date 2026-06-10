@@ -1,3 +1,6 @@
+import type { NextRequest } from "next/server";
+import { getRedirectUri } from "@/lib/app-url";
+
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
 const SPOTIFY_API_BASE = "https://api.spotify.com/v1";
 
@@ -7,9 +10,15 @@ export type NowPlaying = {
   artist: string;
   album: string;
   albumArtUrl: string | null;
+  albumReleaseYear: string | null;
+  trackNumber: number | null;
+  totalTracks: number | null;
   progressMs: number;
   durationMs: number;
   trackId: string | null;
+  deviceName: string | null;
+  deviceType: string | null;
+  fetchedAt: number;
 };
 
 type SpotifyTokenResponse = {
@@ -17,19 +26,30 @@ type SpotifyTokenResponse = {
   expires_in: number;
 };
 
-type SpotifyCurrentlyPlaying = {
+type SpotifyImage = { url: string; width: number; height: number };
+
+type SpotifyTrack = {
+  id: string;
+  name: string;
+  duration_ms: number;
+  track_number: number;
+  artists: { name: string }[];
+  album: {
+    name: string;
+    release_date: string;
+    total_tracks: number;
+    images: SpotifyImage[];
+  };
+};
+
+type SpotifyPlayerState = {
   is_playing: boolean;
   progress_ms: number;
-  item: {
-    id: string;
+  item: SpotifyTrack | null;
+  device: {
     name: string;
-    duration_ms: number;
-    artists: { name: string }[];
-    album: {
-      name: string;
-      images: { url: string; width: number; height: number }[];
-    };
-  } | null;
+    type: string;
+  };
 };
 
 function getCredentials() {
@@ -94,6 +114,64 @@ async function getAccessToken(): Promise<string> {
   return data.access_token;
 }
 
+function getLargestImage(images: SpotifyImage[]) {
+  if (!images.length) return null;
+  return [...images].sort((a, b) => b.width - a.width)[0]?.url ?? null;
+}
+
+function emptyNowPlaying(): NowPlaying {
+  return {
+    isPlaying: false,
+    title: "",
+    artist: "",
+    album: "",
+    albumArtUrl: null,
+    albumReleaseYear: null,
+    trackNumber: null,
+    totalTracks: null,
+    progressMs: 0,
+    durationMs: 0,
+    trackId: null,
+    deviceName: null,
+    deviceType: null,
+    fetchedAt: Date.now(),
+  };
+}
+
+function mapPlayerState(data: SpotifyPlayerState): NowPlaying {
+  const track = data.item;
+  const fetchedAt = Date.now();
+
+  if (!track) {
+    return {
+      ...emptyNowPlaying(),
+      isPlaying: data.is_playing,
+      deviceName: data.device?.name ?? null,
+      deviceType: data.device?.type ?? null,
+      fetchedAt,
+    };
+  }
+
+  const releaseYear = track.album.release_date?.slice(0, 4) ?? null;
+
+  return {
+    isPlaying: data.is_playing,
+    title: track.name,
+    artist: track.artists.map((a) => a.name).join(", "),
+    album: track.album.name,
+    albumArtUrl: getLargestImage(track.album.images),
+    albumReleaseYear: releaseYear,
+    trackNumber: track.track_number,
+    totalTracks: track.album.total_tracks,
+    progressMs: data.progress_ms,
+    durationMs: track.duration_ms,
+    trackId: track.id,
+    deviceName: data.device?.name ?? null,
+    deviceType: data.device?.type ?? null,
+    fetchedAt,
+  };
+}
+
 export async function fetchNowPlaying(): Promise<NowPlaying | null> {
   if (!isSpotifyConfigured()) {
     return null;
@@ -101,65 +179,23 @@ export async function fetchNowPlaying(): Promise<NowPlaying | null> {
 
   const accessToken = await getAccessToken();
 
-  const response = await fetch(
-    `${SPOTIFY_API_BASE}/me/player/currently-playing`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      cache: "no-store",
-    },
-  );
+  const playerResponse = await fetch(`${SPOTIFY_API_BASE}/me/player`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
 
-  if (response.status === 204) {
-    return {
-      isPlaying: false,
-      title: "",
-      artist: "",
-      album: "",
-      albumArtUrl: null,
-      progressMs: 0,
-      durationMs: 0,
-      trackId: null,
-    };
+  if (playerResponse.status === 204) {
+    return emptyNowPlaying();
   }
 
-  if (!response.ok) {
-    const error = await response.text();
+  if (!playerResponse.ok) {
+    const error = await playerResponse.text();
     throw new Error(`Spotify API error: ${error}`);
   }
 
-  const data = (await response.json()) as SpotifyCurrentlyPlaying;
-  const track = data.item;
-
-  if (!track) {
-    return {
-      isPlaying: false,
-      title: "",
-      artist: "",
-      album: "",
-      albumArtUrl: null,
-      progressMs: 0,
-      durationMs: 0,
-      trackId: null,
-    };
-  }
-
-  const images = [...track.album.images].sort((a, b) => b.width - a.width);
-  const albumArtUrl = images[0]?.url ?? null;
-
-  return {
-    isPlaying: data.is_playing,
-    title: track.name,
-    artist: track.artists.map((a) => a.name).join(", "),
-    album: track.album.name,
-    albumArtUrl,
-    progressMs: data.progress_ms,
-    durationMs: track.duration_ms,
-    trackId: track.id,
-  };
+  const playerData = (await playerResponse.json()) as SpotifyPlayerState;
+  return mapPlayerState(playerData);
 }
-
-import type { NextRequest } from "next/server";
-import { getRedirectUri } from "@/lib/app-url";
 
 export function getSpotifyAuthUrl(request: NextRequest) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;

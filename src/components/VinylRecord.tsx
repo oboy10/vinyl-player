@@ -10,7 +10,7 @@ type VinylRecordProps = {
 
 export function VinylRecord({ albumArtUrl, isPlaying, title }: VinylRecordProps) {
   return (
-    <div className="relative aspect-square w-full max-w-[min(72vw,280px)]">
+    <div className="relative mx-auto aspect-square w-full max-w-[min(58vw,240px)]">
       <div
         className={`vinyl-disc absolute inset-0 rounded-full ${isPlaying ? "vinyl-spinning" : ""}`}
         aria-hidden
@@ -27,7 +27,7 @@ export function VinylRecord({ albumArtUrl, isPlaying, title }: VinylRecordProps)
               alt={title || "Album art"}
               fill
               className="object-cover"
-              sizes="200px"
+              sizes="240px"
               priority
             />
           ) : (
